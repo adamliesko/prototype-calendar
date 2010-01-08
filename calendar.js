@@ -1,4 +1,39 @@
-var Calendar = Class.create({
+/*	Prototype Calendar, version 0.1
+ *	Copyright (c) 2009, GravityMedia
+ *
+ *	Permission is hereby granted, free of charge, to any person obtaining a copy
+ *	of this software and associated documentation files (the "Software"), to
+ *	deal in the Software without restriction, including without limitation the
+ *	rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+ *	sell copies of the Software, and to permit persons to whom the Software is
+ *	furnished to do so, subject to the following conditions:
+ *
+ *	The above copyright notice and this permission notice shall be included in
+ *	all copies or substantial portions of the Software.
+ *
+ *	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ *	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *	FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ *	IN THE SOFTWARE.
+ *
+ *	This work is licensed under the Creative Commons Attribution-Share Alike 3.0
+ *	Unported License. To view a copy of this license, visit
+ *	http://creativecommons.org/licenses/by-sa/3.0/ or send a letter to Creative
+ *	Commons, 171 Second Street, Suite 300, San Francisco, California, 94105,
+ *	USA.
+ *
+ *	@version: 0.1
+ *	@author: GravityMedia http://www.gravitymedia.de/
+ *	@date: 2009-12-28
+ *	@copyright: Copyright (c) 2009, GravityMedia (http://www.gravitymedia.de/). All rights reserved.
+ *	@license: Licensed under The MIT License. See http://opensource.org/licenses/mit-license.php. 
+ *	@website: http://www.gravitymedia.de/
+ */
+
+var Calendar = Class.create(Object.extend(Object.clone(DateMethods), {
 
 	initialize: function(element, options) {
 		this.element = $(element);
@@ -55,8 +90,8 @@ var Calendar = Class.create({
 			this.setNoDatesBeforeTo(_options.noDatesBefore);
 			this.setNoDatesAfterTo(_options.noDatesAfter);
 			this.showHandler = this.show.bind(this);
-			this.blurHandler = function(event) { this.setCurrentDateTo(Date.parse($F(event.element()))).showMonth(this.currentDate); }.bindAsEventListener(this);
-			this.selectHandler = function(event) { event.element().select(); };
+			this.blurHandler = function(event) { if(!Object.isElement(this.target) || this.calendar.visible()) { this.setCurrentDateTo(Date.parse($F(event.element()))).showDate(this.currentDate); } }.bindAsEventListener(this);
+			this.focusHandler = function(event) { event.element().select(); };
 			this.targetHandler = function() { if(this.calendar.visible()) { this.hide(); } }.bind(this);
 			this.previous = new Calendar.Button(this.labels.previous, this.showPreviousMonth.bind(this));
 			this.next = new Calendar.Button(this.labels.next, this.showNextMonth.bind(this));
@@ -80,72 +115,43 @@ var Calendar = Class.create({
 		return this.realDate.toString('D');
 	},
 	
-	getDate: function(date) {
-		return (date instanceof Date ? date.clone() : Date.today()).at({ hour: 0, minute: 0 });
-	},
-
-	parseDate: function(date) {
-		return this.getDate(date instanceof Date ? date : Date.parse(date));
-	},
-	
-	isUnavailable: function(date) {
-		var _date = this.parseDate(date);
-		return (this.noDatesBefore instanceof Date && _date.compareTo(this.noDatesBefore) < 0) || (this.noDatesAfter instanceof Date && _date.compareTo(this.noDatesAfter) > 0);
-	},
-
 	hide: function() {
 		if(!Object.isElement(this.target)) { this.element.stopObserving('blur', this.blurHandler); }
-		if(this.selectOnFocus) { this.element.stopObserving('focus', this.selectHandler); }
+		if(this.selectOnFocus) { this.element.stopObserving('focus', this.focusHandler); }
 		(Object.isElement(this.target) ? this.target : (this.disableInputOnFocus ? this.element.enable() : this.element)).observe(this.showOn, this.showHandler);
 		this.calendar.hide();
 		return this;
 	},
 	
 	show: function() {
-		return this.showMonth(this.currentDate);
+		return this.showDate(this.currentDate);
 	},
 
-	showPreviousDay: function() {
-		return this.showMonth(this.viewDate.addDays(-1));
-	},
-
-	showNextDay: function() {
-		return this.showMonth(this.viewDate.addDays(1));
-	},
-	
-	showPreviousMonth: function() {
-		return this.showMonth(this.viewDate.addMonths(-1));
-	},
-
-	showNextMonth: function() {
-		return this.showMonth(this.viewDate.addMonths(1));
-	},
-	
-	showMonth: function(date) {
+	showDate: function(date) {
 		this.viewDate = this.getDate(date);
 		var _firstDayName = Date.CultureInfo.abbreviatedDayNames[Date.CultureInfo.firstDayOfWeek],
 			_lastDayName = Date.CultureInfo.abbreviatedDayNames[(Date.CultureInfo.firstDayOfWeek + Date.CultureInfo.abbreviatedDayNames.length - 1) % Date.CultureInfo.abbreviatedDayNames.length];
-		var _month = new Calendar.Month(this),
+		var _month = new Calendar.Month(this, this.viewDate),
 			_first = this.viewDate.clone().moveToFirstDayOfMonth(),
 			_last = this.viewDate.clone().moveToLastDayOfMonth();
 		var _week = _first.clone().add(-1 * Date.CultureInfo.abbreviatedDayNames.length).days(),
-			_days = $R(parseInt(_first.toString('dd'), 10), parseInt(_last.toString('dd'), 10)).collect(function(day) { return new Calendar.Day(this, this.viewDate.clone().set({ day: day })); }.bind(this));
+			_days = $R(this.parseToDayNumber(_first), this.parseToDayNumber(_last)).collect(function(day) { return new Calendar.Day(this, this.viewDate.clone().set({ day: day })); }.bind(this));
 		while(_first.toString('ddd') != _firstDayName) { _first.addDays(-1); _days.unshift(new Calendar.Day(this, _first.clone(), true)); }
 		while(_last.toString('ddd') != _lastDayName) { _last.addDays(1); _days.push(new Calendar.Day(this, _last.clone(), true)); }
 		if(this.selectMonth === true && this.selectYear === true) {
-			this.date.update(Date.CultureInfo.monthNames.inject(new Calendar.Select(this), function(select, text, value) { return select.insert(new Calendar.Select.Option(this.viewDate.clone().set({ month: value }), text)); }.bind(this))).insert($R(_month.year - this.offsetYear, _month.year + this.offsetYear).inject(new Calendar.Select(this), function(select, value) { return select.insert(new Calendar.Select.Option(this.viewDate.clone().set({ year: value }), value)); }.bind(this)));
+			this.date.update(Date.CultureInfo.monthNames.inject(new Calendar.Select(this, this.viewDate), function(select, text, value) { return select.insert(new Calendar.Select.Option(this.viewDate.clone().set({ month: value }), text)); }.bind(this))).insert($R(_month.year - this.offsetYear, _month.year + this.offsetYear).inject(new Calendar.Select(this, this.viewDate), function(select, value) { return select.insert(new Calendar.Select.Option(this.viewDate.clone().set({ year: value }), value)); }.bind(this)));
 		} else {
 			if(this.selectMonth === true) {
-				this.date.update(Date.CultureInfo.monthNames.inject(new Calendar.Select(this), function(select, text, value) { return select.insert(new Calendar.Select.Option(this.viewDate.clone().set({ month: value }), text)); }.bind(this))).insert(new Element('span').insert(_month.year));
+				this.date.update(Date.CultureInfo.monthNames.inject(new Calendar.Select(this, this.viewDate), function(select, text, value) { return select.insert(new Calendar.Select.Option(this.viewDate.clone().set({ month: value }), text)); }.bind(this))).insert(new Element('span').insert(_month.year));
 			} else if(this.selectMonth === true) {
-				this.date.update(new Element('span').insert(this.viewDate.toString('dddd'))).insert($R(_month.year - this.offsetYear, _month.year + this.offsetYear).inject(new Calendar.Select(this), function(select, value) { return select.insert(new Calendar.Select.Option(this.viewDate.clone().set({ year: value }), value)); }.bind(this)));
+				this.date.update(new Element('span').insert(this.viewDate.toString('dddd'))).insert($R(_month.year - this.offsetYear, _month.year + this.offsetYear).inject(new Calendar.Select(this, this.viewDate), function(select, value) { return select.insert(new Calendar.Select.Option(this.viewDate.clone().set({ year: value }), value)); }.bind(this)));
 			} else {
 				this.date.update(new Element('span').insert(this.viewDate.toString('y')));
 			}
 		}
-		this.table.update(_days.inGroupsOf(Date.CultureInfo.abbreviatedDayNames.length, new Element('td')).inject(new Calendar.Month(this, this.viewDate.toString('yyy'), this.viewDate.toString('MM')), function(month, week) { return month.insert(week.inject(new Calendar.Week(this, _week.add(Date.CultureInfo.abbreviatedDayNames.length).days()), function(week, day) { return week.insert(day); })); }.bind(this)));
+		this.table.update(_days.inGroupsOf(Date.CultureInfo.abbreviatedDayNames.length, new Element('td')).inject(_month, function(month, week) { return month.insert(week.inject(new Calendar.Week(this, _week.add(Date.CultureInfo.abbreviatedDayNames.length).days()), function(week, day) { return week.insert(day); })); }.bind(this)));
 		if(!Object.isElement(this.target)) { this.element.observe('blur', this.blurHandler); }
-		if(this.selectOnFocus) { this.element.observe('focus', this.selectHandler); }
+		if(this.selectOnFocus) { this.element.observe('focus', this.focusHandler); }
 		(Object.isElement(this.target) ? this.target : (this.disableInputOnFocus ? this.element.disable() : this.element)).stopObserving(this.showOn, this.showHandler);
 		this.previous.disable(this.isUnavailable(_first.add(-1).days()));
 		this.next.disable(this.isUnavailable(_last.add(1).days()));
@@ -154,34 +160,43 @@ var Calendar = Class.create({
 		return this;
 	},
 
-	setCurrentDateTo: function(date) {
-		this.currentDate = this.parseDate(date);
-		return this;
+	showPreviousDay: function() {
+		return this.showDate(this.viewDate.addDays(-1));
+	},
+
+	showNextDay: function() {
+		return this.showDate(this.viewDate.addDays(1));
 	},
 	
-	setNoDatesBeforeTo: function(date) {
-		this.noDatesBefore = date === null ? null : this.parseDate(date);
-		return this;
+	showPreviousMonth: function() {
+		return this.showDate(this.viewDate.addMonths(-1));
 	},
 
-	setNoDatesAfterTo: function(date) {
-		this.noDatesAfter = date === null ? null : this.parseDate(date);
-		return this;
+	showNextMonth: function() {
+		return this.showDate(this.viewDate.addMonths(1));
+	},
+	
+	showPreviousYear: function() {
+		return this.showDate(this.viewDate.addYears(-1));
+	},
+
+	showNextYear: function() {
+		return this.showDate(this.viewDate.addYears(1));
 	}
 
-});
+}));
 
 Calendar.Month = Class.create({
 
-	initialize: function($calendar) {
-		this.calendar = $calendar;
-		this.year = parseInt($calendar.viewDate.toString('yyyy'), 10);
-		this.month = parseInt($calendar.viewDate.toString('MM'), 10);
+	initialize: function($parent, date) {
+		this.parent = $parent;
+		this.year = $parent.parseToYearNumber(date);
+		this.month = $parent.parseToMonthNumber(date);
 		this.weeks = [];
 	},
 
 	toElement: function() {
-		return new Element('table').insert(new Element('thead').insert($R(0, 6).inject(new Element('tr').insert(new Element('td').insert(this.calendar.labels.week)), function(row, index) { return row.insert(new Element('td').insert(Date.CultureInfo.shortestDayNames[(index + Date.CultureInfo.firstDayOfWeek) % Date.CultureInfo.abbreviatedDayNames.length])); }))).insert(this.weeks.inject(new Element('tbody'), function(month, week) { return month.insert(week); }));
+		return new Element('table').insert(new Element('thead').insert($R(0, 6).inject(new Element('tr').insert(new Element('td').insert(this.parent.labels.week)), function(row, index) { return row.insert(new Element('td').insert(Date.CultureInfo.shortestDayNames[(index + Date.CultureInfo.firstDayOfWeek) % Date.CultureInfo.abbreviatedDayNames.length])); }))).insert(this.weeks.inject(new Element('tbody'), function(month, week) { return month.insert(week); }));
 	},
 	
 	toString: function() {
@@ -197,15 +212,15 @@ Calendar.Month = Class.create({
 
 Calendar.Week = Class.create({
 
-	initialize: function($calendar, date) {
-		this.calendar = $calendar;
-		this.year = parseInt($calendar.viewDate.toString('yyyy'), 10);
-		this.week = parseInt(date.getISOWeek(), 10);
+	initialize: function($parent, date) {
+		this.parent = $parent;
+		this.year = $parent.parseToYearNumber(date);
+		this.week = $parent.parseToWeekNumber(date);
 		this.days = [];
 	},
 
 	toElement: function() {
-		return this.days.inject(new Element('tr').insert(new Element('td', { className: this.calendar.classNames.week }).insert(this.week.toPaddedString(2))), function(week, day) { return week.insert(day); });
+		return this.days.inject(new Element('tr').insert(new Element('td', { className: this.parent.classNames.week }).insert(this.week.toPaddedString(2))), function(week, day) { return week.insert(day); });
 	},
 	
 	toString: function() {
@@ -221,26 +236,26 @@ Calendar.Week = Class.create({
 
 Calendar.Day = Class.create({
 
-	initialize: function($calendar, date, outbounded) {		
-		this.calendar = $calendar;
+	initialize: function($parent, date, outbounded) {		
+		this.parent = $parent;
 		this.date = date;
 		this.outbounded = outbounded === true ? true : false;
 	},
 	
 	toElement: function() {
-		var _element = new Element('td').insert(parseInt(this.date.toString('dd'), 10));
+		var _element = new Element('td').insert(this.parent.parseToDayNumber(this.date));
 		if(this.outbounded) {
-			_element.addClassName(this.calendar.classNames.outbound);
-		} else if(this.calendar.isUnavailable(this.date)) {
-			_element.addClassName(this.calendar.classNames.unavailable);
+			_element.addClassName(this.parent.classNames.outbound);
+		} else if(this.parent.isUnavailable(this.date)) {
+			_element.addClassName(this.parent.classNames.unavailable);
 		} else {
-			if(this.date.equals(this.calendar.realDate)) { _element.addClassName(this.calendar.classNames.real); }
-			else if(this.date.equals(this.calendar.currentDate)) { _element.addClassName(this.calendar.classNames.current); }
+			if(this.date.equals(this.parent.realDate)) { _element.addClassName(this.parent.classNames.real); }
+			else if(this.date.equals(this.parent.currentDate)) { _element.addClassName(this.parent.classNames.current); }
 			_element
-				.addClassName(this.calendar.classNames.day)
+				.addClassName(this.parent.classNames.day)
 				.observe('click', this.click.bind(this))
-				.observe('mouseover', function() { _element.addClassName(this.calendar.classNames.hover); }.bind(this))
-				.observe('mouseout', function() { _element.removeClassName(this.calendar.classNames.hover); }.bind(this));
+				.observe('mouseover', function() { _element.addClassName(this.parent.classNames.hover); }.bind(this))
+				.observe('mouseout', function() { _element.removeClassName(this.parent.classNames.hover); }.bind(this));
 		}
 		return _element;
 	},
@@ -250,9 +265,9 @@ Calendar.Day = Class.create({
 	},
 	
 	click: function() {
-		this.calendar.setCurrentDateTo(this.date).showMonth(this.date).element.setValue(this);
-		if(this.calendar.hideOnClick) { this.calendar.hide(); }
-		if(Object.isFunction(this.calendar.onClick)) { this.calendar.onClick(this.calendar, this.toString()); }
+		this.parent.setCurrentDateTo(this.date).showDate(this.date).element.setValue(this);
+		if(this.parent.hideOnClick) { this.parent.hide(); }
+		if(Object.isFunction(this.parent.onClick)) { this.parent.onClick(this.parent, this.toString()); }
 	}
 
 });
@@ -276,14 +291,14 @@ Calendar.Button = Class.create({
 
 Calendar.Select = Class.create({
 
-	initialize: function($calendar) {
-		this.calendar = $calendar;
-		this.selectedValue = $calendar.viewDate;
+	initialize: function($parent, date) {
+		this.parent = $parent;
+		this.date = date;
 		this.options = [];
 	},
 	
 	toElement: function() {
-		return this.options.inject(new Element('select').observe('change', function(event) { this.calendar.showMonth(Date.parse($F(event.element()))); }.bind(this)), function(select, option) { return select.insert(option.setDisabled(this.calendar.isUnavailable(option.date)).setSelected(this.selectedValue.toString('d') == option.date.toString('d'))); }.bind(this));
+		return this.options.inject(new Element('select').observe('change', function(event) { this.parent.showDate(Date.parse($F(event.element()))); }.bind(this)), function(select, option) { return select.insert(option.setDisabled(this.parent.isUnavailable(option.date)).setSelected(this.date.clone().clearTime().equals(option.date.clone().clearTime()))); }.bind(this));
 	},
 	
 	toString: function() {
