@@ -33,24 +33,9 @@
  *  @website: http://www.gravitymedia.de/
  */
 
-Element.addMethods({
-
-	// Returns the parent and siblings of an element (withot the element itself)
-	// or an empty list if the node is below or equals the body element
-	family: function(element) {
-		var _element = $(element);
-		return (!Object.isElement(_element) || _element.tagName.toLowerCase() == 'body') ? [] : [_element.parentNode].concat(_element.siblings());
-	},
-
-	// set parent's missing z-indexes, get and set as highest z-index
-	survive: function(element) {
-		var _element = $(element), _family;
-		if(Object.isElement(_element)) {
-			_element.ancestors().each(function(ancestor) { if(ancestor.tagName.toLowerCase() != 'html' && ancestor.getStyle('zIndex') === null) { ancestor.survive(); } });
-			_family = element.family();
-			return _element.setStyle({ zIndex: (_family.length > 0 ? parseInt(_family.invoke('getStyle', 'zIndex').max(), 10) : 0) + 1 });
-		}
-		return _element;
+document.observe('dom:loaded', function() {
+	var _body = $$('body').first();
+	if(Object.isElement(_body)) {
+		document.fire('body:loaded', { body: _body });
 	}
-
 });

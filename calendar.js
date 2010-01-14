@@ -1,36 +1,36 @@
-/*	Prototype Calendar, version 0.1
- *	Copyright (c) 2009, GravityMedia
+/*  Prototype Calendar, version 0.1.2
+ *  Copyright (c) 2009, GravityMedia. All rights reserved.
  *
- *	Permission is hereby granted, free of charge, to any person obtaining a copy
- *	of this software and associated documentation files (the "Software"), to
- *	deal in the Software without restriction, including without limitation the
- *	rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
- *	sell copies of the Software, and to permit persons to whom the Software is
- *	furnished to do so, subject to the following conditions:
+ *  Permission is hereby granted, free of charge, to any person obtaining a copy
+ *  of this software and associated documentation files (the "Software"), to
+ *  deal in the Software without restriction, including without limitation the
+ *  rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+ *  sell copies of the Software, and to permit persons to whom the Software is
+ *  furnished to do so, subject to the following conditions:
  *
- *	The above copyright notice and this permission notice shall be included in
- *	all copies or substantial portions of the Software.
+ *  The above copyright notice and this permission notice shall be included in
+ *  all copies or substantial portions of the Software.
  *
- *	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- *	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- *	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- *	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- *	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- *	FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
- *	IN THE SOFTWARE.
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *  FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ *  IN THE SOFTWARE.
  *
- *	This work is licensed under the Creative Commons Attribution-Share Alike 3.0
- *	Unported License. To view a copy of this license, visit
- *	http://creativecommons.org/licenses/by-sa/3.0/ or send a letter to Creative
- *	Commons, 171 Second Street, Suite 300, San Francisco, California, 94105,
- *	USA.
+ *  This work is licensed under the Creative Commons Attribution-Share Alike 3.0
+ *  Unported License. To view a copy of this license, visit
+ *  http://creativecommons.org/licenses/by-sa/3.0/ or send a letter to Creative
+ *  Commons, 171 Second Street, Suite 300, San Francisco, California, 94105,
+ *  USA.
  *
- *	@version: 0.1
- *	@author: GravityMedia http://www.gravitymedia.de/
- *	@date: 2009-12-28
- *	@copyright: Copyright (c) 2009, GravityMedia (http://www.gravitymedia.de/). All rights reserved.
- *	@license: Licensed under The MIT License. See http://opensource.org/licenses/mit-license.php. 
- *	@website: http://www.gravitymedia.de/
+ *  @version: 0.1.2
+ *  @author: GravityMedia
+ *  @date: 2010-01-14
+ *  @copyright: Copyright (c) 2009, GravityMedia. All rights reserved.
+ *  @license: Licensed under The MIT License. See http://opensource.org/licenses/mit-license.php. 
+ *  @website: http://www.gravitymedia.de/
  */
 
 var Calendar = Class.create(Object.extend(Object.clone(DateMethods), {
@@ -38,7 +38,9 @@ var Calendar = Class.create(Object.extend(Object.clone(DateMethods), {
 	initialize: function(element, options) {
 		this.element = $(element);
 		if(Object.isElement(this.element)) {
+			// override default options
 			var _options = Object.extend({
+				readOnly:				false,
 				disableInputOnFocus:	true,
 				selectOnFocus:			true,
 				selectMonth:			true,
@@ -51,79 +53,106 @@ var Calendar = Class.create(Object.extend(Object.clone(DateMethods), {
 				showOn:					'click',
 				hideOn:					'click',
 				hideOnClick:			false,
-				onClick:				null
+				offsetLeft:				0,
+				offsetTop:				0,
+				onChange:				null
 			}, options || {});
-			this.classNames = Object.extend({
-				calendar:				'calendar',
-				head:					'head',
-				body:					'body',
-				foot:					'foot',
-				previous:				'previous',
-				date:					'date',
-				next:					'next',
-				week:					'week',
-				day:					'day',
-				real:					'real',
-				current:				'current',
-				hover:					'hover',
-				outbound:				'outbound',
-				unavailable:			'unavailable'
-			}, _options.classNames || {});
-			this.labels = Object.extend({
-				previous:				'&lsaquo;',
-				next:					'&rsaquo;',
-				week:					'&nbsp;',
-				close:					'close'
-			}, _options.labels || {});
-			this.disableInputOnFocus = _options.disableInputOnFocus === false ? false : true;
-			this.selectOnFocus = _options.selectOnFocus === false ? false : true;
-			this.selectMonth = _options.selectMonth === false ? false : true;
-			this.selectYear = _options.selectYear === false ? false : true;
-			this.offsetYear = Math.max(0, _options.offsetYear);
-			this.target = $(_options.target);
-			this.showOn = Object.isElement(this.target) ? (['click', 'mouseover'].include(_options.showOn) ? _options.showOn : 'click') : 'focus';
-			this.hideOn = Object.isElement(this.target) ? (['click', 'mouseover'].include(_options.showOn) ? _options.showOn : 'click') : null;
-			this.hideOnClick = _options.hideOnClick === true ? true : false;
-			this.onClick = _options.onClick;
-			this.realDate = this.getDate();
-			this.setCurrentDateTo(_options.currentDate === null ? (this.element.present() ? $F(this.element) : new Date()) : _options.currentDate);
-			this.setNoDatesBeforeTo(_options.noDatesBefore);
-			this.setNoDatesAfterTo(_options.noDatesAfter);
-			this.showHandler = this.show.bind(this);
-			this.blurHandler = function(event) { if(!Object.isElement(this.target) || this.calendar.visible()) { this.setCurrentDateTo(Date.parse($F(event.element()))).showDate(this.currentDate); } }.bindAsEventListener(this);
-			this.focusHandler = function(event) { event.element().select(); };
-			this.targetHandler = function() { if(this.calendar.visible()) { this.hide(); } }.bind(this);
-			this.previous = new Calendar.Button(this.labels.previous, this.showPreviousMonth.bind(this));
-			this.next = new Calendar.Button(this.labels.next, this.showNextMonth.bind(this));
-			this.date = new Element('td', { className: this.classNames.date });
-			this.table = new Element('td', { colspan: 3 });
-			this.close = new Element('button').insert(this.labels.close).observe('click', this.hide.bind(this));
-			this.calendar = new Element('div', { className: this.classNames.calendar }).insert(new Element('table', { className: this.classNames.calendar }).insert(new Element('thead').insert(new Element('tr', { className: this.classNames.head }).insert(new Element('td', { className: this.classNames.previous }).insert(this.previous)).insert(this.date).insert(new Element('td', { className: this.classNames.next }).insert(this.next)))).insert(new Element('tbody').insert(new Element('tr', { className: this.classNames.body }).insert(this.table))).insert(new Element('tfoot').insert(new Element('tr', { className: this.classNames.foot }).insert(new Element('td', { colspan: 3 }).insert(this.close))))).hide();
-			document.observe('dom:loaded', function() { var _body = $$('body').first(); if(Object.isElement(_body)) { _body.insert(this); } }.bind(this));
+			// if calendar is not read only
+			if(_options.readOnly !== true && this.element.readAttribute('readonly') !== 'true') {
+				// override default class names
+				this.classNames = Object.extend({
+					calendar:				'calendar',
+					head:					'head',
+					body:					'body',
+					foot:					'foot',
+					previous:				'previous',
+					date:					'date',
+					next:					'next',
+					week:					'week',
+					day:					'day',
+					real:					'real',
+					current:				'current',
+					hover:					'hover',
+					outbound:				'outbound',
+					unavailable:			'unavailable'
+				}, _options.classNames || {});
+				// override default labels 
+				this.labels = Object.extend({
+					previous:				'&lsaquo;',
+					next:					'&rsaquo;',
+					week:					'&nbsp;',
+					close:					'close'
+				}, _options.labels || {});
+				// parse options
+				this.disableInputOnFocus = _options.disableInputOnFocus === false ? false : true;
+				this.selectOnFocus = (this.disableInputOnFocus || _options.selectOnFocus === false) ? false : true;
+				this.selectMonth = _options.selectMonth === false ? false : true;
+				this.selectYear = _options.selectYear === false ? false : true;
+				this.offsetYear = Math.max(0, _options.offsetYear);
+				this.target = $(_options.target);
+				this.showOn = Object.isElement(this.target) ? (['click', 'mouseover'].include(_options.showOn) ? _options.showOn : 'click') : 'focus';
+				this.hideOn = Object.isElement(this.target) ? (['click', 'mouseover'].include(_options.showOn) ? _options.showOn : 'click') : null;
+				this.hideOnClick = _options.hideOnClick === true ? true : false;
+				this.offset = { left: isNaN(_options.offsetLeft) ? 0 : Number(_options.offsetLeft), top: isNaN(_options.offsetTop) ? 0 : Number(_options.offsetTop) };
+				this.onChange = _options.onChange;
+				this.realDate = this.getDate();
+				this.setNoDatesBeforeTo(_options.noDatesBefore);
+				this.setNoDatesAfterTo(_options.noDatesAfter);
+				this.setCurrentDateTo(_options.currentDate === null ? (this.element.present() ? $F(this.element) : new Date()) : _options.currentDate).element.setValue(this.currentDate.toString('d'));;
+				// showHandler
+				var _showHandler = this.show.bind(this);
+				this.releaseShowEvent = function(element) { return element.stopObserving(this.showOn, _showHandler) || element; }.bind(this);
+				this.catchShowEvent = function(element) { return this.releaseShowEvent(element).observe(this.showOn, _showHandler); }.bind(this);
+				// hideHandler
+				var _hideHandler = function() { if(this.calendar.visible()) { this.hide(); } }.bind(this);
+				this.releaseHideEvent = function(element) { return element.stopObserving(this.hideOn, _hideHandler) || element; }.bind(this);
+				this.catchHideEvent = function(element) { return this.releaseHideEvent(element).observe(this.hideOn, _hideHandler); }.bind(this);
+				// keypressHandler
+				var _keypressHandler = function(event) { (function(element, date) { var _date = Date.parseExact($F(element), Date.CultureInfo.formatPatterns.shortDate); if(_date !== null && !_date.equals(date)) { element.fire('calendar:change', { date: _date }); } }.defer(event.element(), this.currentDate)); }.bindAsEventListener(this);
+				this.releaseKeypressEvent = function(element) { return element.stopObserving('keypress', _keypressHandler) || element; };
+				this.catchKeypressEvent = function(element) { return this.releaseKeypressEvent(element).observe('keypress', _keypressHandler); }.bind(this);	
+				// focusHandler
+				var _focusHandler = function(event) { event.element().select(); };
+				this.releaseFocusEvent = function(element) { return element.stopObserving('focus', _focusHandler) || element; };
+				this.catchFocusEvent = function(element) { return this.selectOnFocus ? this.releaseFocusEvent(element).observe('focus', _focusHandler) : element; }.bind(this);
+				// listen for change from keypressHandler
+				this.element.observe('calendar:change', function(event) { if(!this.isUnavailable(event.memo.date)) { var _date = event.memo.date.toString('d'); this.setCurrentDateTo(event.memo.date).element.setValue(_date); if(this.calendar.visible()) { this.show(); } if(Object.isFunction(this.onChange)) { this.onChange(this, _date); } } }.bindAsEventListener(this));
+				// create elements
+				this.previous = new Calendar.Button(this.labels.previous, this.showPreviousMonth.bind(this));
+				this.next = new Calendar.Button(this.labels.next, this.showNextMonth.bind(this));
+				this.date = new Element('td', { className: this.classNames.date });
+				this.table = new Element('td', { colspan: 3 });
+				this.close = new Element('button').insert(this.labels.close).observe('click', this.hide.bind(this));
+				this.calendar = new Element('div', { className: this.classNames.calendar }).insert(new Element('table', { className: this.classNames.calendar }).insert(new Element('thead').insert(new Element('tr', { className: this.classNames.head }).insert(new Element('td', { className: this.classNames.previous }).insert(this.previous)).insert(this.date).insert(new Element('td', { className: this.classNames.next }).insert(this.next)))).insert(new Element('tbody').insert(new Element('tr', { className: this.classNames.body }).insert(this.table))).insert(new Element('tfoot').insert(new Element('tr', { className: this.classNames.foot }).insert(new Element('td', { colspan: 3 }).insert(this.close))))).hide();
+				// (try to) insert elements after body has loaded
+				document.observe('body:loaded', function(event) { event.memo.body.insert(this); }.bindAsEventListener(this));
+			}
 		}
 	},
 	
 	toElement: function() {
-		var _height = this.element.enable().setValue(this.currentDate.toString('d')).getHeight(),
-			_position = (Object.isElement(this.target) ? this.target.stopObserving(this.hideOn, this.targetHandler).observe(this.hideOn, this.targetHandler) : this.element).stopObserving(this.showOn, this.showHandler).observe(this.showOn, this.showHandler).cumulativeOffset();
-		this.calendar.setStyle({ position: 'absolute', left: _position.left + 'px', top: _position.top + _height + 'px' });
-		if(Object.isElement(this.target)) { this.element.stopObserving('blur', this.blurHandler).observe('blur', this.blurHandler); }
+		// position calendar, catch important events and return the calendar element
+		var _height = this.catchKeypressEvent(this.element).enable().setValue(this.currentDate.toString('d')).getHeight(),
+			_position = this.catchShowEvent(Object.isElement(this.target) ? this.target : this.element).cumulativeOffset();
+		this.calendar.setStyle({ position: 'absolute', left: this.offset.left + _position.left + 'px', top: this.offset.top + _position.top + _height + 'px' });
 		return this.calendar;
 	},
 	
 	toString: function() {
+		// debug oriented toString method of the real date
 		return this.realDate.toString('D');
 	},
 	
 	hide: function() {
-		if(!Object.isElement(this.target)) { this.element.stopObserving('blur', this.blurHandler); }
-		if(this.selectOnFocus) { this.element.stopObserving('focus', this.focusHandler); }
-		(Object.isElement(this.target) ? this.target : (this.disableInputOnFocus ? this.element.enable() : this.element)).observe(this.showOn, this.showHandler);
+		// toggle events and hide the calendar
+		this.releaseFocusEvent(this.disableInputOnFocus ? this.catchKeypressEvent(this.element.enable()) : this.element);
+		this.catchShowEvent(Object.isElement(this.target) ? this.releaseHideEvent(this.target) : this.element);
 		this.calendar.hide();
 		return this;
 	},
 	
 	show: function() {
+		// shows the calendar with the current date
 		return this.showDate(this.currentDate);
 	},
 
@@ -149,10 +178,9 @@ var Calendar = Class.create(Object.extend(Object.clone(DateMethods), {
 				this.date.update(new Element('span').insert(this.viewDate.toString('y')));
 			}
 		}
-		this.table.update(_days.inGroupsOf(Date.CultureInfo.abbreviatedDayNames.length, new Element('td')).inject(_month, function(month, week) { return month.insert(week.inject(new Calendar.Week(this, _week.add(Date.CultureInfo.abbreviatedDayNames.length).days()), function(week, day) { return week.insert(day); })); }.bind(this)));
-		if(!Object.isElement(this.target)) { this.element.observe('blur', this.blurHandler); }
-		if(this.selectOnFocus) { this.element.observe('focus', this.focusHandler); }
-		(Object.isElement(this.target) ? this.target : (this.disableInputOnFocus ? this.element.disable() : this.element)).stopObserving(this.showOn, this.showHandler);
+		this.table.update(_days.inGroupsOf(Date.CultureInfo.abbreviatedDayNames.length, new Element('td')).inject(_month, function(month, week) { return month.insert(week.inject(new Calendar.Week(this, _week.add(Date.CultureInfo.abbreviatedDayNames.length).days()), function(week, day) { return week.insert(day); })); }.bind(this)));	
+		this.releaseShowEvent(Object.isElement(this.target) ? this.catchHideEvent(this.target) : this.element);
+		this.catchFocusEvent(this.disableInputOnFocus ? this.releaseKeypressEvent(this.element).disable() : this.element);
 		this.previous.disable(this.isUnavailable(_first.add(-1).days()));
 		this.next.disable(this.isUnavailable(_last.add(1).days()));
 		this.calendar.survive().show();
@@ -265,9 +293,9 @@ Calendar.Day = Class.create({
 	},
 	
 	click: function() {
-		this.parent.setCurrentDateTo(this.date).showDate(this.date).element.setValue(this);
+		this.parent.setCurrentDateTo(this.date).show().element.setValue(this);
 		if(this.parent.hideOnClick) { this.parent.hide(); }
-		if(Object.isFunction(this.parent.onClick)) { this.parent.onClick(this.parent, this.toString()); }
+		if(Object.isFunction(this.parent.onChange)) { this.parent.onChange(this.parent, this.toString()); }
 	}
 
 });
